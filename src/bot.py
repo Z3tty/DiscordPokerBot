@@ -258,16 +258,17 @@ def end_game(game: Game, message: discord.Message) -> List[str]:
 	if game.state == GameState.WAITING:
 		game.state = GameState.NO_GAME
 		return ["The game was ended before it even begun!"]
-	elif game.state == GameState.NO_HANDS or game.state == GameState.HANDS_DEALT:
+	elif game.state in (GameState.NO_HANDS, GameState.HANDS_DEALT):
 		game.state = GameState.NO_GAME
 		return ["Alright people, fun's over, game ended"]
-	elif game.state == GameState.FLOP_DEALT or game.state == GameState.TURN_DEALT or game.state == GameState.RIVER_DEALT:
+	elif game.state in (GameState.FLOP_DEALT, GameState.TURN_DEALT, GameState.RIVER_DEALT):
 		game.state = GameState.NO_GAME
 		return ["Alright people, fun's over, someone interrupted the dealing"]
 	else:
 		return ["I have no idea what just happened, ",
 				"but i think you just tried to end a game that wasnt even started! ",
 				"Thats almost as bad as folding like Antonio!"]
+	
 def kill(game: Game, message: discord.Message) -> List[str]:
 	if(message.author.top_role.permissions.administrator):
 		game.players = []
