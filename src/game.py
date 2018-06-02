@@ -106,6 +106,7 @@ class Game:
         for player in self.players:
             messages.append("**{}** has $*{}*.".format(player.user.name,player.balance))
         messages.append("**{}** is the current dealer. Message ?deal to deal when you're ready.".format(self.dealer.user.mention))
+        print("---{} DEALER.".format(self.dealer.user.name))
         return messages
 
     # Moves on to the next dealer
@@ -286,6 +287,7 @@ class Game:
         for winner, winnings in sorted(winners.items(), key=lambda item: item[1]):
             hand_name = str(best_possible_hand(self.shared_cards, winner.cards))
             messages.append("**{}** wins $***{}*** with a **{}**.".format(winner.user.mention,winnings,hand_name))
+            print("{} WINS +{}".format(winner.user.name, winnings))
             winner.balance += winnings
 
         # Remove players that went all in and lost
@@ -296,10 +298,12 @@ class Game:
                 i += 1
             else:
                 messages.append("**{}** has been knocked out of the game!".format(player.user.mention))
+                print("{} OUT.".format(player.user.name))
                 self.players.pop(i)
                 if len(self.players) == 1:
                     # There's only one player, so they win
                     messages.append("**{}** wins the game! Congratulations!".format(self.players[0].user.mention))
+                    print("WINNER {}".format(self.players[0].name))
                     self.state = GameState.NO_GAME
                     return messages
                 if i <= self.dealer_index:
@@ -314,14 +318,16 @@ class Game:
     # Make the current player check, betting no additional money
     def check(self) -> List[str]:
         self.current_player.placed_bet = True
-        return ["{} checks.".format(self.current_player.user.mention)] + self.next_turn()
+        return ["{} checks.".format(self.current_player.name)] + self.next_turn()
 
     # Has the current player raise a certain amount
     def raise_bet(self, amount: int) -> List[str]:
         self.pot.handle_raise(self.current_player, amount)
-        messages = ["**{}** raises by $*{}*.".format(self.current_player.user.mention,amount)]
+        messages = ["**{}** raises by $*{}*.".format(self.current_player.name,amount)]
+        print("---{} RAISE +{}.".format(self.current_player.name, amount))
         if self.current_player.balance == 0:
             messages.append("***{} is all in!***".format(self.current_player.name))
+            print("---{} WENT ALL IN.".format(self.current_player.name))
             self.leave_hand(self.current_player)
             self.turn_index -= 1
         return messages + self.next_turn()
@@ -329,9 +335,11 @@ class Game:
     # Has the current player match the current bet
     def call(self) -> List[str]:
         self.pot.handle_call(self.current_player)
-        messages = ["**{}** calls.".format(self.current_player.user.mention)]
+        messages = ["**{}** calls.".format(self.current_player.name)]
+        print("---{} CALLED.".format(self.current_player.name))
         if self.current_player.balance == 0:
             messages.append("***{} is all in!***".format(self.current_player.name))
+            print("---{} WENT ALL IN.".format(self.current_player.name))
             self.leave_hand(self.current_player)
             self.turn_index -= 1
         return messages + self.next_turn()
@@ -344,7 +352,8 @@ class Game:
 
     # Has the current player fold their hand
     def fold(self) -> List[str]:
-        messages = ["**{}** has folded.".format(self.current_player.user.mention)]
+        messages = ["**{}** has folded.".format(self.current_player.name)]
+        print("---{} FOLDED.".format(self.current_player.name))
         self.pot.handle_fold(self.current_player)
         self.leave_hand(self.current_player)
 
