@@ -3,6 +3,7 @@ import os
 from typing import Dict, List
 
 import discord
+import random
 
 from game import Game, GAME_OPTIONS, GameState
 
@@ -268,7 +269,7 @@ def end_game(game: Game, message: discord.Message) -> List[str]:
 		return ["I have no idea what just happened, ",
 				"but i think you just tried to end a game that wasnt even started! ",
 				"Thats almost as bad as folding like Antonio!"]
-	
+
 def kill(game: Game, message: discord.Message) -> List[str]:
 	if(message.author.top_role.permissions.administrator):
 		game.players = []
@@ -316,7 +317,11 @@ commands = {
 
 @client.event
 async def on_ready():
-    print("Poker bot ready!")
+    print("All systems are go!")
+    print("Thank you for using the ZexZee Poker Bot (not TM)!")
+    print("Not rigged for your pleasure ;)")
+    session = random.randint(1000000000, 9999999999)
+    print("Session id {}".format(session))
 
 @client.event
 async def on_message(message):
