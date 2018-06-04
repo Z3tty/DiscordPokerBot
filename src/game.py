@@ -69,6 +69,7 @@ class Game:
         if self.is_player(user):
             return False
         self.players.append(Player(user))
+        print("GameJoin {}".format(user.name))
         return True
 
     # Returns whether a user is playing in the game
@@ -88,9 +89,7 @@ class Game:
             # The player who we're removing isn't in the hand, so just
             # return
             return
-
         self.in_hand.pop(index)
-
         # Adjust the index of the first person to bet and the index of the
         # current player, depending on the index of the player who just folded
         if index < self.first_bettor:
@@ -208,11 +207,11 @@ class Game:
 
         if self.pot.pay_blind(small_player, blind):
             messages.append("***{} is all in!***".format(small_player.name))
-            self.leave_hand(small_player)
+            tmp = self.leave_hand(small_player)
         messages.append("**{}** has paid the big blind of $*{}*.".format(big_player.name, blind*2))
         if self.pot.pay_blind(big_player, blind * 2):
             messages.append("***{} is all in!***".format(big_player.name))
-            self.leave_hand(big_player)
+            tmp = self.leave_hand(big_player)
 
         return messages
 
@@ -303,7 +302,7 @@ class Game:
                 if len(self.players) == 1:
                     # There's only one player, so they win
                     messages.append("**{}** wins the game! Congratulations!".format(self.players[0].user.mention))
-                    print("WINNER {}".format(self.players[0].name))
+                    print("WINNER {}\n".format(self.players[0].name))
                     self.state = GameState.NO_GAME
                     return messages
                 if i <= self.dealer_index:
@@ -318,6 +317,7 @@ class Game:
     # Make the current player check, betting no additional money
     def check(self) -> List[str]:
         self.current_player.placed_bet = True
+        print("---{} CHECKED.".format(self.current_player.name))
         return ["{} checks.".format(self.current_player.name)] + self.next_turn()
 
     # Has the current player raise a certain amount
