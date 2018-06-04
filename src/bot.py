@@ -255,29 +255,58 @@ def all_in(game: Game, message: discord.Message) -> List[str]:
 
 # Ends the game
 def end_game(game: Game, message: discord.Message) -> List[str]:
-	game.players = []
-	if game.state == GameState.WAITING:
-		game.state = GameState.NO_GAME
-		return ["The game was ended before it even begun!"]
-	elif game.state in (GameState.NO_HANDS, GameState.HANDS_DEALT):
-		game.state = GameState.NO_GAME
-		return ["Alright people, fun's over, game ended"]
-	elif game.state in (GameState.FLOP_DEALT, GameState.TURN_DEALT, GameState.RIVER_DEALT):
-		game.state = GameState.NO_GAME
-		return ["Alright people, fun's over, someone interrupted the dealing"]
+	if(message.author.top_role.permissions.administrator):
+		game.players = []
+		if game.state == GameState.WAITING:
+			game.state = GameState.NO_GAME
+			return ["The game was ended before it even begun!"]
+		elif game.state in (GameState.NO_HANDS, GameState.HANDS_DEALT):
+			game.state = GameState.NO_GAME
+			return ["Alright people, fun's over, game ended"]
+		elif game.state in (GameState.FLOP_DEALT, GameState.TURN_DEALT, GameState.RIVER_DEALT):
+			game.state = GameState.NO_GAME
+			return ["Alright people, fun's over, someone interrupted the dealing"]
+		else:
+			return ["I have no idea what just happened, ",
+					"but I think you just tried to end a game that wasn't even started! ",
+					"That's almost as bad as folding like Antonio!"]
 	else:
-		return ["I have no idea what just happened, ",
-				"but i think you just tried to end a game that wasnt even started! ",
-				"Thats almost as bad as folding like Antonio!"]
+		return ["I'm sorry {}, I'm afraid I can't let you do that!".format(message.author.mention)]
 
 def kill(game: Game, message: discord.Message) -> List[str]:
 	if(message.author.top_role.permissions.administrator):
 		game.players = []
 		game.state = GameState.NO_GAME
-		print("Welp, I guess its sleepy time! Start run.bat to play some more!")
+		print("\n\n\nWelp, I guess its sleepy time! Start run.bat to play some more!\n\n")
 		exit()
 	else:
-		return ["Im sorry {}, I'm afraid I cant let you do that!".format(message.author.mention)]
+		return ["I'm sorry {}, I'm afraid I can't let you do that!".format(message.author.mention)]
+
+def leave(game: Game, message: discord.Message) -> List[str]:
+    if game.state == GameState.NO_GAME:
+        return ["Theres no game to leave!"]
+    else:
+        usr = message.author.name
+        i = 0
+        while i < len(game.players):
+            player = game.players[i]
+            if player.user.name == usr:
+                print("GameLeave {}".format(player.user.name))
+                game.players.pop(i)
+                if len(game.players) == 0:
+                    return end_game(game, message)
+                if len(game.players) == 1:
+                    # There's only one player, so they win
+                    if game.state == GameState.WAITING:
+                        return ["Woops! Looks like **{}** dosen't wanna play after all!".format(usr)]
+                    else:
+                        return ["**{}** wins the game due to the forfeit of {}".format(game.players[0].user.mention, usr)]
+                        print("WINNER {}\n".format(game.players[0].name))
+                if i <= game.dealer_index:
+                    game.dealer_index -= 1
+            else:
+                i+=1
+        return ["You're not even in the game {}".format(message.author.mention)]
 
 Command = namedtuple("Command", ["description", "action"])
 
@@ -313,6 +342,8 @@ commands = {
     					end_game),
     '?kill':    Command('Kill the bot!',
     					kill),
+    '?leave':   Command('Leave the game',
+    					leave),
 }
 
 @client.event
@@ -321,7 +352,7 @@ async def on_ready():
     print("Thank you for using the ZexZee Poker Bot (not TM)!")
     print("Not rigged for your pleasure ;)")
     session = random.randint(1000000000, 9999999999)
-    print("Session id {}".format(session))
+    print("Session id {}\n\n".format(session))
 
 @client.event
 async def on_message(message):
@@ -339,8 +370,7 @@ async def on_message(message):
     if command[0] == '?':
         if command not in commands:
             await client.send_message(
-                message.channel, "{} is not a valid command. ".format(message.content),
-                                 "Message !help to see the list of commands.")
+                message.channel, "Woops! **{}** is not a valid command. Message ?help to see the list of commands.".format(message.content))
             return
 
         game = games.setdefault(message.channel, Game())
