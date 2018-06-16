@@ -1,6 +1,7 @@
 from collections import namedtuple
 import os
 from typing import Dict, List
+from subprocess import Popen
 
 import discord
 import random
@@ -13,6 +14,8 @@ with open("token.txt", "r") as f:
 
 client = discord.Client()
 games = {}
+
+
 
 # Starts a new game if one hasn't been started yet, returning an error message
 # if a game has already been started. Returns the messages the bot should say
@@ -71,7 +74,7 @@ def start_game(game: Game, message: discord.Message) -> List[str]:
 def deal_hand(game: Game, message: discord.Message) -> List[str]:
     if game.state == GameState.NO_GAME:
         return ["No game has been started for you to deal. "
-                "Message !newgame to start one."]
+                "Message ?newgame to start one."]
     elif game.state == GameState.WAITING:
         return ["You can't deal because the game hasn't started yet."]
     elif game.state != GameState.NO_HANDS:
@@ -106,7 +109,7 @@ def call_bet(game: Game, message: discord.Message) -> List[str]:
 # Returns the list of messages the bot should say.
 def check(game: Game, message: discord.Message) -> List[str]:
     if game.state == GameState.NO_GAME:
-        return ["No game has been started yet. Message !newgame to start one."]
+        return ["No game has been started yet. Message ?newgame to start one."]
     elif game.state == GameState.WAITING:
         return ["You can't check because the game hasn't started yet."]
     elif not game.is_player(message.author):
@@ -128,7 +131,7 @@ def check(game: Game, message: discord.Message) -> List[str]:
 # raise, or if they cannot raise. Returns the list of messages the bot will say
 def raise_bet(game: Game, message: discord.Message) -> List[str]:
     if game.state == GameState.NO_GAME:
-        return ["No game has been started yet. Message !newgame to start one."]
+        return ["No game has been started yet. Message ?newgame to start one."]
     elif game.state == GameState.WAITING:
         return ["You can't raise because the game hasn't started yet."]
     elif not game.is_player(message.author):
@@ -142,7 +145,7 @@ def raise_bet(game: Game, message: discord.Message) -> List[str]:
 
     tokens = message.content.split()
     if len(tokens) < 2:
-        return ["Please follow !raise with the amount that you would "
+        return ["Please follow ?raise with the amount that you would "
                 "like to raise it by."]
     try:
         amount = int(tokens[1])
@@ -152,7 +155,7 @@ def raise_bet(game: Game, message: discord.Message) -> List[str]:
         elif game.cur_bet + amount > game.current_player.max_bet:
             return ["You don't have enough money to raise by ${}.".format(amount),
                     "The most you can raise it by is "
-                    "${game.current_player.max_bet - game.cur_bet}."]
+                    "${}.".format(game.current_player.max_bet - game.cur_bet)]
         return game.raise_bet(amount)
     except ValueError:
         return ["Please follow !raise with an integer. "
@@ -163,7 +166,7 @@ def raise_bet(game: Game, message: discord.Message) -> List[str]:
 def fold_hand(game: Game, message: discord.Message) -> List[str]:
     if game.state == GameState.NO_GAME:
         return ["No game has been started yet. "
-                "Message !newgame to start one."]
+                "Message ?newgame to start one."]
     elif game.state == GameState.WAITING:
         return ["You can't fold yet because the game hasn't started yet."]
     elif not game.is_player(message.author):
@@ -207,12 +210,12 @@ def set_option(game: Game, message: discord.Message) -> List[str]:
     tokens = message.content.split()
     if len(tokens) == 2:
         return ["You must specify a new value after the name of an option "
-                "when using the !set command."]
+                "when using the ?set command."]
     elif len(tokens) == 1:
         return ["You must specify an option and value to set when using "
-                "the !set command."]
+                "the ?set command."]
     elif tokens[1] not in GAME_OPTIONS:
-        return ["'{}' is not an option. Message !options to see ".format(tokens[1]),
+        return ["'{}' is not an option. Message ?options to see ".format(tokens[1]),
                 "the list of options."]
     try:
         val = int(tokens[2])
@@ -238,7 +241,7 @@ def chip_count(game: Game, message: discord.Message) -> List[str]:
 # to say.
 def all_in(game: Game, message: discord.Message) -> List[str]:
     if game.state == GameState.NO_GAME:
-        return ["No game has been started yet. Message !newgame to start one."]
+        return ["No game has been started yet. Message ?newgame to start one."]
     elif game.state == GameState.WAITING:
         return ["You can't go all in because the game hasn't started yet."]
     elif not game.is_player(message.author):
@@ -277,11 +280,11 @@ def kill(game: Game, message: discord.Message) -> List[str]:
 	if(message.author.top_role.permissions.administrator):
 		game.players = []
 		game.state = GameState.NO_GAME
-		print("\n\n\nWelp, I guess its sleepy time! Start run.bat to play some more!\n\n")
 		exit()
 	else:
 		return ["I'm sorry {}, I'm afraid I can't let you do that!".format(message.author.mention)]
 
+# DONT YOU EVER DARE TRY TO FIDDLE WITH THIS AGAIN UNLESS IT BREAKS!
 def leave(game: Game, message: discord.Message) -> List[str]:
     if game.state == GameState.NO_GAME:
         return ["Theres no game to leave!"]
@@ -291,22 +294,45 @@ def leave(game: Game, message: discord.Message) -> List[str]:
         while i < len(game.players):
             player = game.players[i]
             if player.user.name == usr:
-                print("GameLeave {}".format(player.user.name))
                 game.players.pop(i)
                 if len(game.players) == 0:
-                    return end_game(game, message)
-                if len(game.players) == 1:
+                	game.players = []
+                	game.state = GameState.NO_GAME
+                	return ["Congrats, you just killed a game you started for no reason!",
+                	        "Have you no consideration for the cycles you just wasted?"]
+                if len(game.players) > 1:
+                    if i <= game.dealer_index:
+                        game.dealer_index -= 1
+                        game.next_dealer()
+                        j = 0
+                        while j < len(game.in_hand):
+                            player_inhand = game.in_hand[j]
+                            if player_inhand.user.name == usr:
+                                game.in_hand.pop(j)
+                                game.turn_index = 0
+                            else:
+                                j+=1
+                    return ["**{}** Dropped out, resetting turn/dealer!".format(usr),
+                    "**{}** is dealer and its **{}'s** turn!".format(game.players[game.dealer_index].user.mention, game.in_hand[game.turn_index].user.mention)]
+                elif len(game.players) == 1:
                     # There's only one player, so they win
                     if game.state == GameState.WAITING:
+                        game.state = GameState.NO_GAME
                         return ["Woops! Looks like **{}** dosen't wanna play after all!".format(usr)]
                     else:
+                        game.state = GameState.NO_GAME
                         return ["**{}** wins the game due to the forfeit of {}".format(game.players[0].user.mention, usr)]
-                        print("WINNER {}\n".format(game.players[0].name))
-                if i <= game.dealer_index:
-                    game.dealer_index -= 1
             else:
                 i+=1
         return ["You're not even in the game {}".format(message.author.mention)]
+
+def botrestart(game: Game, message: discord.Message) -> List[str]:
+	if(message.author.top_role.permissions.administrator):
+		p = Popen("run.bat")
+		kill(game, message)
+	else:
+		return ["I'm sorry {}, I'm afraid I can't let you do that!".format(message.author.mention)]
+
 
 Command = namedtuple("Command", ["description", "action"])
 
@@ -344,6 +370,8 @@ commands = {
     					kill),
     '?leave':   Command('Leave the game',
     					leave),
+    '?restart': Command('Restart the bot',
+    					botrestart),
 }
 
 @client.event
