@@ -7,6 +7,7 @@ import discord
 import random
 
 from game import Game, GAME_OPTIONS, GameState
+import pot
 
 POKER_BOT_TOKEN = ""
 with open("token.txt", "r") as f:
@@ -290,31 +291,38 @@ def leave(game: Game, message: discord.Message) -> List[str]:
         return ["Theres no game to leave!"]
     else:
         usr = message.author.name
+        print("{} LEAVE START".format(usr))
         i = 0
         while i < len(game.players):
             player = game.players[i]
+            print("+CurrentUser {} Has name {}".format(player,player.user.name))
             if player.user.name == usr:
-                game.players.pop(i)
+                print("++FoundMatch {}, GamePlayers pre-pop {}".format(player.user.name == usr, game.players))
+                tmp = game.players.pop(i)
+                print("+++Popped {}@{}, GamePlayers after-pop {}".format(tmp, tmp.user.name, game.players))
                 if len(game.players) == 0:
+                	print("++++No players in GamePlayers: {} Ending game".format(game.players))
                 	game.players = []
                 	game.state = GameState.NO_GAME
+                	print("{} LEFT".format(usr))
                 	return ["Congrats, you just killed a game you started for no reason!",
                 	        "Have you no consideration for the cycles you just wasted?"]
                 if len(game.players) > 1:
-                    if i <= game.dealer_index:
-                        game.dealer_index -= 1
-                        game.next_dealer()
-                        j = 0
-                        while j < len(game.in_hand):
-                            player_inhand = game.in_hand[j]
-                            if player_inhand.user.name == usr:
-                                game.in_hand.pop(j)
-                                game.turn_index = 0
-                            else:
-                                j+=1
-                    return ["**{}** Dropped out, resetting turn/dealer!".format(usr),
-                    "**{}** is dealer and its **{}'s** turn!".format(game.players[game.dealer_index].user.mention, game.in_hand[game.turn_index].user.mention)]
+                    game.pot.handle_fold(player)
+                    game.leave_hand(player)
+                    print("++++More than one player in GamePlayers: {}\n++++Popped user location: {}".format(game.players, tmp))
+                    try:
+                        if game.turn_index > len(game.in_hand):
+                            game.turn_index = len(game.in_hand)-1
+                        if game.dealer_index > len(game.players):
+                        	game.dealer_index = len(game.players)-1
+                    except:
+                        print("******************[!] EXCEPTION TRYING TO SET INDICES [!]******************")
+                    return ["**{}** Dropped out!".format(usr),
+                           "**{}** is dealer and its **{}'s** turn!\n".format(game.players[game.dealer_index].user.mention,
+                           game.in_hand[game.turn_index].user.mention)]
                 elif len(game.players) == 1:
+                    print("++++One player, win by default: {}".format(game.players))
                     # There's only one player, so they win
                     if game.state == GameState.WAITING:
                         game.state = GameState.NO_GAME
